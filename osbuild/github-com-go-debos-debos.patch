@@ -1,0 +1,55 @@
+### debos ###
+diff --git actions/debootstrap_action.go actions/debootstrap_action.go
+index 506270c..560b971 100644
+--- actions/debootstrap_action.go
++++ actions/debootstrap_action.go
+@@ -199,21 +199,21 @@ func (d *DebootstrapAction) Run(context *debos.DebosContext) error {
+ 
+ 	}
+ 
+ 	if d.Variant != "" {
+ 		cmdline = append(cmdline, fmt.Sprintf("--variant=%s", d.Variant))
+ 	}
+ 
+ 	cmdline = append(cmdline, d.Suite)
+ 	cmdline = append(cmdline, context.Rootdir)
+ 	cmdline = append(cmdline, d.Mirror)
+-	cmdline = append(cmdline, "/usr/share/debootstrap/scripts/unstable")
++	cmdline = append(cmdline, fmt.Sprintf("/usr/share/debootstrap/scripts/%s", d.Suite))
+ 
+ 	err := debos.Command{}.Run("Debootstrap", cmdline...)
+ 
+ 	if err != nil {
+ 		log := path.Join(context.Rootdir, "debootstrap/debootstrap.log")
+ 		_ = debos.Command{}.Run("debootstrap.log", "cat", log)
+ 		return err
+ 	}
+ 
+ 	if foreign {
+diff --git cmd/debos/debos.go cmd/debos/debos.go
+index 0f9d6a1..7020ac0 100644
+--- cmd/debos/debos.go
++++ cmd/debos/debos.go
+@@ -87,20 +87,22 @@ func main() {
+ 		"all_proxy",
+ 		"no_proxy",
+ 	}
+ 
+ 	var exitcode int = 0
+ 	// Allow to run all deferred calls prior to os.Exit()
+ 	defer func() {
+ 		os.Exit(exitcode)
+ 	}()
+ 
++	fmt.Println("UBUNTU-FIXES-PATCH")
++
+ 	parser := flags.NewParser(&options, flags.Default)
+ 	fakemachineBackends := parser.FindOptionByLongName("fakemachine-backend")
+ 	fakemachineBackends.Choices = fakemachine.BackendNames()
+ 
+ 	args, err := parser.Parse()
+ 	if err != nil {
+ 		flagsErr, ok := err.(*flags.Error)
+ 		if ok && flagsErr.Type == flags.ErrHelp {
+ 			return
+ 		} else {

@@ -1,0 +1,21 @@
+# What OS version to build
+DISTRO              =   ubuntu
+SUITE				=	jammy
+KVER				=	5.15.0-17-generic
+ARCHITECTURE		=	amd64
+COMPRESSION			=	gz
+MIRROR				=	http://au.archive.ubuntu.com/ubuntu/
+KEYRING				=	/usr/share/keyrings/$(DISTRO)-archive-keyring.gpg
+
+# What builder image to build or use
+IMAGE				=	debos-builder-$(DISTRO)
+TAG					=	latest
+
+# What container engine to build / run with
+DOCKER_KEEPGROUPS	=	--group-add kvm
+PODMAN32_KEEPGROUPS	=	--group-add kvm
+PODMAN30_KEEPGROUPS	=	--annotation run.oci.keep_original_groups=1
+PODMAN_KEEPGROUPS	=	$(PODMAN30_KEEPGROUPS)
+#CONTAINER_BUILD	=	docker build
+CONTAINER_BUILD		=	buildah bud --layers true
+CONTAINER_RUN		=	podman run $(PODMAN_KEEPGROUPS)

@@ -1,0 +1,92 @@
+{{- $distro                 := or .distro             "ubuntu" -}}
+{{- $architecture           := or .architecture       "amd64" -}}
+{{- $suite                  := or .suite              "jammy" -}}
+{{- $compression            := or .compression        "gz" -}}
+{{- $image                  := or .image              (printf "%s-%s-%s.tar.%s" $distro $suite $architecture $compression) -}}
+{{- $deboot_cache           := or .deboot_cache       (printf "%s-%s-%s.deboot.tar.%s" $distro $suite $architecture $compression) -}}
+{{- $use_deboot_cache       := or .use_deboot_cache   "false" -}}
+{{- $save_deboot_cache      := or .save_deboot_cache  "true" -}}
+{{- $mirror                 := or .mirror             "http://au.archive.ubuntu.com/ubuntu/" -}}
+{{- $keyring                := or .keyring            (printf "/usr/share/keyrings/%s-archive-keyring.gpg" $distro) -}}
+
+architecture: {{ $architecture }}
+
+actions:
+
+  - action: run
+    label: check writable
+    description: check writable
+    chroot: false
+    command: |
+      hostname
+      set -vx
+      ls -alR $ARTIFACTDIR
+      id
+      sort -k2 < /proc/mounts | column -t
+      chmod -R a+w $ARTIFACTDIR
+      date >> $ARTIFACTDIR/check-writable.txt
+      ls -alR $ARTIFACTDIR
+      cat $ARTIFACTDIR/check-writable.txt
+
+  {{ if eq $use_deboot_cache "true" }}
+
+  - action: unpack
+    origin: artifacts
+    file: {{ $deboot_cache }}
+    compression: {{ $compression }}
+
+  {{ else }}
+
+  - action: debootstrap
+    suite: {{ $suite }}
+    components:
+      - main
+      - universe
+      - restricted
+      - multiverse
+    mirror: {{ $mirror }}
+    variant: minbase
+    keyring-file: {{ $keyring }}
+
+  - action: pack
+    label: pack deboot
+    description: pack deboot
+    file: {{ $deboot_cache }}
+    compression: gz
+
+  {{ end }}
+
+  # The rest of this recipe is based on the example at:
+  # https://github.com/go-debos/debos/blob/master/doc/examples/
+  - action: apt
+    description: Install some packages
+    recommends: false
+    packages: [ sudo, openssh-server, adduser, systemd-sysv, strace, ltrace ]
+
+  - action: run
+    label: setup-user
+    description: setup-user
+    chroot: true
+    script: scripts/setup-user.sh
+
+  - action: overlay
+    label: sudo overlay
+    description: sudo overlay
+    source: overlays/sudo
+
+  - action: run
+    label: setup hostname
+    description: setup hostname
+    chroot: true
+    command: echo {{ $suite }} > /etc/hostname
+
+  - action: pack
+    label: pack final
+    description: pack final
+    file: {{ $image }}
+    compression: {{ $compression }}
+
+  - action: run
+    postprocess: true
+    script: scripts/postprocess.sh
+    #chroot: false

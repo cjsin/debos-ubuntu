@@ -1,0 +1,49 @@
+### fakemachine ###
+diff --git machine.go machine.go
+index f1a0189..72060cd 100644
+--- machine.go
++++ machine.go
+@@ -209,20 +209,21 @@ func InMachine() (ret bool) {
+ }
+ 
+ // Check whether the auto backend is supported
+ func Supported() bool {
+ 	_, err := newBackend("auto", nil)
+ 	return err == nil
+ }
+ 
+ const initScript = `#!/bin/busybox sh
+ 
++set -vx
+ busybox mount -t proc proc /proc
+ busybox mount -t sysfs none /sys
+ 
+ # probe additional modules
+ {{ range $m := .Backend.InitModules }}
+ busybox modprobe {{ $m }}
+ {{ end }}
+ 
+ # mount static volumes
+ {{ range $point := StaticVolumes .Machine }}
+@@ -235,20 +236,21 @@ const networkdTemplate = `
+ [Match]
+ Name=%[1]s
+ 
+ [Network]
+ DHCP=ipv4
+ # Disable link-local address to speedup boot
+ LinkLocalAddressing=no
+ IPv6AcceptRA=no
+ `
+ const commandWrapper = `#!/bin/sh
++set -vx
+ /lib/systemd/systemd-networkd-wait-online -q
+ if [ $? != 0 ]; then
+   echo "WARNING: Network setup failed"
+   echo "== Journal =="
+   journalctl -a --no-pager
+   echo "== networkd =="
+   networkctl status
+   networkctl list
+   echo 1 > /run/fakemachine/result
+   exit
